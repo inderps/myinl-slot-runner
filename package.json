@@ -6,6 +6,8 @@
   "description": "Checks specified MyINL course sessions and can enroll when a seat is available.",
   "scripts": {
     "check": "node src/index.mjs",
+    "watch": "node src/index.mjs --watch",
+    "watch:book": "node src/index.mjs --watch --book",
     "book": "node src/index.mjs --book"
   },
   "engines": {

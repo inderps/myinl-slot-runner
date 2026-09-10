@@ -1,17 +1,63 @@
 {
+  "pollIntervalSeconds": 15,
   "courses": [
     {
-      "name": "Luxembourgish A1 Standard Blended Learning",
+      "name": "Luxembourgish A1 Standard",
       "language": "Luxembourgish",
-      "url": "https://myinl.inll.lu/language/luxembourgish-85/standard-blended-learning-125",
+      "url": "https://myinl.inll.lu/language/luxembourgish-85/standard-34",
       "slots": [
         {
           "location": "INLL Belval",
-          "schedule": "10:10-11:50 Mo-We"
-        },
+          "schedule": "17:15-18:55 Tu-Th 17:15-18:55 Fr",
+          "reference": "LB0003-8535"
+        }
+      ]
+    },
+    {
+      "name": "Luxembourgish A1 Compact",
+      "language": "Luxembourgish",
+      "url": "https://myinl.inll.lu/language/luxembourgish-85/compact-56",
+      "slots": [
         {
           "location": "INLL Belval",
-          "schedule": "12:10-13:50 We-Fr"
+          "schedule": "17:15-18:55 Tu-Th 17:15-18:55 Tu-Th",
+          "reference": "LB0006-8534"
+        }
+      ]
+    },
+    {
+      "name": "Luxembourgish A1 Compact eLearning",
+      "language": "Luxembourgish",
+      "url": "https://myinl.inll.lu/language/luxembourgish-85/compact-e-learning-223",
+      "slots": [
+        {
+          "location": "eLearning",
+          "schedule": "08:10-09:50 Mo-We 08:10-09:50 Mo-We",
+          "reference": "LB0031-8520"
+        }
+      ]
+    },
+    {
+      "name": "Luxembourgish A1 Standard eLearning",
+      "language": "Luxembourgish",
+      "url": "https://myinl.inll.lu/language/luxembourgish-85/standard-e-learning-232",
+      "slots": [
+        {
+          "location": "eLearning",
+          "schedule": "08:10-09:50 Tu-We-Fr 08:10-09:50 Tu-We-Fr",
+          "reference": "LB0035-8675"
+        }
+      ]
+    },
+    {
+      "name": "Luxembourgish A1 Compact Combined 50 Minutes",
+      "language": "Luxembourgish",
+      "url": "https://myinl.inll.lu/language/luxembourgish-85/compact-combined-50-minutes-657",
+      "slots": [
+        {
+          "location": "INLL Glacis",
+          "schedule": "07:10-08:00 Tu-Th 07:10-08:00 Mo-Fr (e-learning)",
+          "reference": "LB0124-8650"
         }
       ]
     }

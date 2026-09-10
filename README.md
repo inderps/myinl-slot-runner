@@ -1,53 +1,99 @@
 # MyINL slot runner
 
-Checks multiple course pages and preferred sessions defined in [config.json](config.json). In booking mode, it enrolls in the first available configured slot, using the order in that file.
+Monitors the MyINL course sessions defined in [config.json](config.json). It identifies sessions by their unique MyINL reference and can submit an enrollment when a preferred session becomes available.
 
-The default mode is read-only. It reports whether each configured session has an active **Enroll** form. It only sends an enrollment POST when run with the **--book** option.
+By default, the runner checks every 15 seconds. Change pollIntervalSeconds in config.json to adjust the interval.
+
+## Requirements
+
+- Node.js 18 or newer
+- An active authenticated MyINL browser session
+- Optional: the Pushover iPhone app and credentials for notifications
 
 ## Setup
 
-Requires Node.js 18 or newer. There are no package dependencies to install.
+From the project directory, install the project dependencies:
+
+~~~
+npm install
+~~~
+
+Create the local environment file:
 
 ~~~
 cp .env.example .env
 ~~~
 
-Set MYINL_SESSION_ID in .env to the value of the session_id cookie from an authenticated MyINL browser session. Do not commit or share this file. The runner loads .env automatically.
+Open .env and set MYINL_SESSION_ID to the value of the session_id cookie from a currently authenticated MyINL browser session:
+
+~~~
+MYINL_SESSION_ID=your-current-session-cookie-value
+MYINL_TIMEZONE=Europe/Luxembourg
+~~~
+
+The runner loads .env automatically. Never commit or share it; it is excluded by .gitignore.
+
+## iPhone notifications
+
+Install Pushover on your iPhone, create an application in your Pushover dashboard, then add its credentials to .env:
+
+~~~
+PUSHOVER_USER_KEY=your-pushover-user-key
+PUSHOVER_APP_TOKEN=your-pushover-application-api-token
+~~~
+
+The runner sends a notification when it finds an available preferred session. In booking mode, it sends a second notification containing MyINL's booking response.
 
 ## Configure courses and slots
 
-Edit config.json. Each object in courses represents one course page. The order of courses, then the order of slots inside each course, is the enrollment priority.
+Edit config.json. The order of courses, then the order of slots within each course, is the booking priority.
 
 ~~~
 {
+  "pollIntervalSeconds": 15,
   "courses": [
     {
       "name": "A display name",
       "language": "Language name",
       "url": "https://myinl.inll.lu/language/.../...",
       "slots": [
-        { "location": "INLL Belval", "schedule": "10:10-11:50 Mo-We" },
-        { "location": "INLL Glacis", "schedule": "19:00-20:40 Tu-Th" }
+        {
+          "location": "INLL Belval",
+          "schedule": "10:10-11:50 Mo-We",
+          "reference": "LB0015-8522"
+        }
       ]
     }
   ]
 }
 ~~~
 
-You can add as many course objects and slots as you need. The location and schedule text must exactly match the corresponding row on MyINL.
+Every slot must include its unique MyINL reference. The runner uses the reference, rather than displayed schedule text, to match the session.
 
-## Run
+## Commands
 
-Check availability only:
+One availability check, with no enrollment:
 
 ~~~
 npm run check
 ~~~
 
-Submit enrollment for the first available configured slot:
+Keep checking until a preferred session appears, but do not enroll:
+
+~~~
+npm run watch
+~~~
+
+Keep checking until a preferred session appears, then submit one enrollment request:
 
 ~~~
 npm run book
 ~~~
 
-The site can still reject an enrollment because availability can change between the check and the POST. The program prints MyINL's response message.
+The explicit alias below behaves the same as npm run book:
+
+~~~
+npm run watch:book
+~~~
+
+Press Ctrl+C to stop a watcher. A session may disappear between the availability check and the enrollment request; the runner always prints and, if configured, sends MyINL's response.

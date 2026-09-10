@@ -24,10 +24,19 @@ function loadConfig(filename = 'config.json') {
   if (!Array.isArray(config.courses) || config.courses.length === 0) {
     throw new Error('config.json must contain a non-empty "courses" array.');
   }
+  if (
+    config.pollIntervalSeconds !== undefined &&
+    (!Number.isFinite(config.pollIntervalSeconds) || config.pollIntervalSeconds <= 0)
+  ) {
+    throw new Error('pollIntervalSeconds must be a positive number.');
+  }
 
   for (const course of config.courses) {
     if (!course.name || !course.url || !Array.isArray(course.slots) || !course.slots.length) {
       throw new Error('Every course needs name, url, and a non-empty slots array.');
+    }
+    if (course.slots.some((slot) => !slot.reference)) {
+      throw new Error('Every configured slot needs its unique MyINL reference.');
     }
   }
   return config;
@@ -35,7 +44,7 @@ function loadConfig(filename = 'config.json') {
 
 function cleanHtml(value) {
   return value
-    .replace(/<br\s*\/?/gi, ' ')
+    .replace(/<br\s*\/?>/gi, ' ')
     .replace(/<[^>]+>/g, ' ')
     .replace(/&nbsp;/gi, ' ')
     .replace(/&amp;/gi, '&')
@@ -67,9 +76,14 @@ function responseMessage(html) {
 loadDotEnv();
 
 const book = process.argv.includes('--book');
+const watch = process.argv.includes('--watch') || book;
 const sessionId = process.env.MYINL_SESSION_ID;
 const timeZone = process.env.MYINL_TIMEZONE ?? 'Europe/Luxembourg';
+const pushoverUserKey = process.env.PUSHOVER_USER_KEY;
+const pushoverAppToken = process.env.PUSHOVER_APP_TOKEN;
 const config = loadConfig();
+const pollIntervalSeconds = config.pollIntervalSeconds ?? 5;
+const pollIntervalMs = pollIntervalSeconds * 1000;
 
 if (!sessionId) {
   console.error('Missing MYINL_SESSION_ID. Add it to .env.');
@@ -89,44 +103,98 @@ async function fetchPage(url) {
   return response.text();
 }
 
-let selected;
+async function notifyPushover(title, message) {
+  if (!pushoverUserKey || !pushoverAppToken) {
+    console.warn('Pushover is not configured; skipping iPhone notification.');
+    return;
+  }
 
-for (const course of config.courses) {
-  console.log('\n' + course.name);
-  const html = await fetchPage(course.url);
-  const csrfToken = html.match(/csrf_token:\s*"([^"]+)"/i)?.[1];
-  const slots = parseSlots(html);
-
-  for (const target of course.slots) {
-    const result = slots.find(
-      (slot) => slot.location === target.location && slot.schedule === target.schedule,
-    );
-    const label = target.location + ' — ' + target.schedule;
-
-    if (!result) {
-      console.log('NOT FOUND  ' + label);
-    } else if (result.available) {
-      console.log('AVAILABLE  ' + label + ' (' + result.reference + ', ID ' + result.regSessionId + ')');
-      if (!selected) selected = { course, csrfToken, slot: result };
-    } else {
-      console.log('SOLD OUT   ' + label + ' (' + result.reference + ')');
-    }
+  const response = await fetch('https://api.pushover.net/1/messages.json', {
+    method: 'POST',
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      token: pushoverAppToken,
+      user: pushoverUserKey,
+      title,
+      message,
+    }),
+  });
+  const result = await response.json();
+  if (!response.ok || result.status !== 1) {
+    throw new Error(result.errors?.join(', ') ?? 'Pushover returned HTTP ' + response.status);
   }
 }
 
-if (!book) {
-  console.log('\nCheck only. Run npm run book to enroll in the first available configured slot.');
-  process.exit(0);
+const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+
+async function findAvailableSlot() {
+  let selected;
+
+  for (const course of config.courses) {
+    console.log('\n' + course.name);
+    const html = await fetchPage(course.url);
+    const csrfToken = html.match(/csrf_token:\s*"([^"]+)"/i)?.[1];
+    const slots = parseSlots(html);
+
+    for (const target of course.slots) {
+      const result = slots.find((slot) => slot.reference === target.reference);
+      const label = target.location + ' — ' + target.schedule;
+
+      if (!result) {
+        console.log('NOT FOUND  ' + label);
+      } else if (result.available) {
+        console.log('AVAILABLE  ' + label + ' (' + result.reference + ', ID ' + result.regSessionId + ')');
+        if (!selected) selected = { course, csrfToken, slot: result };
+      } else {
+        console.log('SOLD OUT   ' + label + ' (' + result.reference + ')');
+      }
+    }
+  }
+
+  return selected;
 }
+
+let selected;
+let attempt = 0;
+do {
+  attempt += 1;
+  console.log('\n[' + new Date().toISOString() + '] Check #' + attempt);
+
+  try {
+    selected = await findAvailableSlot();
+  } catch (error) {
+    console.error('Check failed: ' + error.message);
+    if (!watch) process.exit(1);
+  }
+
+  if (!selected && watch) {
+    console.log('No preferred slot available. Retrying in ' + pollIntervalSeconds + ' seconds...');
+    await sleep(pollIntervalMs);
+  }
+} while (!selected && watch);
 
 if (!selected) {
   console.log('\nNo configured session is currently available; no enrollment request was sent.');
   process.exit(0);
 }
 
+const selectionLabel =
+  selected.course.name + ': ' + selected.slot.location + ' — ' + selected.slot.schedule;
+try {
+  await notifyPushover('MyINL slot available', selectionLabel + ' (' + selected.slot.reference + ')');
+  if (pushoverUserKey && pushoverAppToken) console.log('Sent Pushover availability notification.');
+} catch (error) {
+  console.error('Could not send Pushover notification: ' + error.message);
+}
+
+if (!book) {
+  console.log('\nA preferred slot is available. Run npm run book to submit enrollment.');
+  process.exit(0);
+}
+
 if (!selected.csrfToken) throw new Error('Could not find a CSRF token on ' + selected.course.name + '.');
 
-console.log('\nBooking ' + selected.course.name + ': ' + selected.slot.location + ' — ' + selected.slot.schedule);
+console.log('\nBooking ' + selectionLabel);
 const response = await fetch(selected.course.url, {
   method: 'POST',
   headers: {
@@ -143,4 +211,11 @@ const response = await fetch(selected.course.url, {
 const responseHtml = await response.text();
 
 console.log('Enrollment request: HTTP ' + response.status);
-console.log(responseMessage(responseHtml) ?? 'No server alert message was found in the response.');
+const bookingMessage = responseMessage(responseHtml) ?? 'No server alert message was found in the response.';
+console.log(bookingMessage);
+try {
+  await notifyPushover('MyINL booking response', selectionLabel + '\n' + bookingMessage);
+  if (pushoverUserKey && pushoverAppToken) console.log('Sent Pushover booking-response notification.');
+} catch (error) {
+  console.error('Could not send Pushover notification: ' + error.message);
+}

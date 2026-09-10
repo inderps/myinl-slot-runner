@@ -1,0 +1,14 @@
+{
+  "name": "myinl-slot-runner",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Checks specified MyINL course sessions and can enroll when a seat is available.",
+  "scripts": {
+    "check": "node src/index.mjs",
+    "book": "node src/index.mjs --book"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

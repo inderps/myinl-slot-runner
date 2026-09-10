@@ -1,0 +1,19 @@
+{
+  "courses": [
+    {
+      "name": "Luxembourgish A1 Standard Blended Learning",
+      "language": "Luxembourgish",
+      "url": "https://myinl.inll.lu/language/luxembourgish-85/standard-blended-learning-125",
+      "slots": [
+        {
+          "location": "INLL Belval",
+          "schedule": "10:10-11:50 Mo-We"
+        },
+        {
+          "location": "INLL Belval",
+          "schedule": "12:10-13:50 We-Fr"
+        }
+      ]
+    }
+  ]
+}

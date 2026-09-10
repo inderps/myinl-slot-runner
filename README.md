@@ -97,3 +97,21 @@ npm run watch:book
 ~~~
 
 Press Ctrl+C to stop a watcher. A session may disappear between the availability check and the enrollment request; the runner always prints and, if configured, sends MyINL's response.
+
+## Run on a server with tmux
+
+After cloning the project and creating `.env` on the server, start a named tmux session:
+
+~~~
+ssh singh@your-server
+cd ~/myinl-slot-runner
+tmux new -s myinl
+npm run watch
+~~~
+
+To run in booking mode, use `npm run book` instead. Detach without stopping the runner by pressing `Ctrl+B`, then `D`. Reconnect later with:
+
+~~~
+ssh singh@your-server
+tmux attach -t myinl
+~~~
